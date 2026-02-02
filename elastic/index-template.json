@@ -1,0 +1,103 @@
+{
+  "index_patterns": ["market-news-*"],
+  "template": {
+    "settings": {
+      "analysis": {
+        "tokenizer": {
+          "ngram_tokenizer": {
+            "type": "ngram",
+            "min_gram": 3,
+            "max_gram": 4,
+            "token_chars": ["letter", "digit"]
+          }
+        },
+        "analyzer": {
+          "ngram_analyzer": {
+            "type": "custom",
+            "tokenizer": "ngram_tokenizer",
+            "filter": ["lowercase"]
+          },
+          "standard_lowercase": {
+            "type": "custom",
+            "tokenizer": "standard",
+            "filter": ["lowercase"]
+          }
+        }
+      }
+    },
+    "mappings": {
+      "properties": {
+
+        "@timestamp": {
+          "type": "date"
+        },
+
+        "published_at": {
+          "type": "date"
+        },
+
+        "title": {
+          "type": "text",
+          "analyzer": "standard_lowercase",
+          "fields": {
+            "keyword": {
+              "type": "keyword"
+            },
+            "ngram": {
+              "type": "text",
+              "analyzer": "ngram_analyzer",
+              "search_analyzer": "standard_lowercase"
+            }
+          }
+        },
+
+        "summary": {
+          "type": "text",
+          "analyzer": "standard_lowercase"
+        },
+
+        "source": {
+          "type": "keyword"
+        },
+
+        "url": {
+          "type": "keyword"
+        },
+
+        "sentiment_label": {
+          "type": "keyword"
+        },
+
+        "sentiment_score": {
+          "type": "float"
+        },
+
+        "provider": {
+          "type": "keyword"
+        },
+
+        "tickers_query": {
+          "type": "keyword"
+        },
+
+        "ticker_sentiments": {
+          "type": "nested",
+          "properties": {
+            "ticker": {
+              "type": "keyword"
+            },
+            "relevance_score": {
+              "type": "float"
+            },
+            "ticker_sentiment_score": {
+              "type": "float"
+            },
+            "ticker_sentiment_label": {
+              "type": "keyword"
+            }
+          }
+        }
+      }
+    }
+  }
+}
