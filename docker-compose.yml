@@ -50,3 +50,12 @@ services:
       LS_JAVA_OPTS: "-Xms512m -Xmx512m"
     ports:
       - "9600:9600"
+
+  spark:
+    image: apache/spark:3.4.2
+    depends_on:
+      - elasticsearch
+    volumes:
+      - ./spark:/opt/spark-jobs
+    working_dir: /opt/spark-jobs
+    command: ["bash", "-lc", "tail -f /dev/null"]
