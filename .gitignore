@@ -1,0 +1,56 @@
+# Environnements virtuels Python
+.venv/
+.venv*/
+venv/
+env/
+producer/.venv/
+
+# Fichiers sensibles (CLÃ‰ API)
+.env
+producer/.env
+*.env
+
+# Fichiers temporaires LaTeX
+*.aux
+*.log
+*.toc
+*.out
+*.fls
+*.fdb_latexmk
+*.synctex.gz
+
+# Logs et fichiers temporaires
+*.log
+*.txt
+spark_output.*
+ngram-query-result*.json
+
+# Dossier Git
+.git/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.pytest_cache/
+
+# Distribution / packaging
+build/
+dist/
+*.egg-info/
+
+# Environments virtuels supplémentaires
+.venv311/

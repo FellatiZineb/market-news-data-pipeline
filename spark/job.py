@@ -74,6 +74,17 @@ write_to_es(daily, target_index_daily)
 write_to_es(by_source, target_index_source)
 write_to_es(by_sentiment, target_index_sentiment)
 
+# Export CSV et JSON
+output_path = "/opt/spark-jobs/output"
+
+daily.coalesce(1).write.mode("overwrite").option("header", "true").csv(f"{output_path}/daily")
+by_source.coalesce(1).write.mode("overwrite").option("header", "true").csv(f"{output_path}/by_source")
+by_sentiment.coalesce(1).write.mode("overwrite").option("header", "true").csv(f"{output_path}/by_sentiment")
+
+daily.coalesce(1).write.mode("overwrite").json(f"{output_path}/daily_json")
+by_source.coalesce(1).write.mode("overwrite").json(f"{output_path}/by_source_json")
+by_sentiment.coalesce(1).write.mode("overwrite").json(f"{output_path}/by_sentiment_json")
+
 daily.show(20, truncate=False)
 by_source.show(20, truncate=False)
 by_sentiment.show(20, truncate=False)
