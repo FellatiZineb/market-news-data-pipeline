@@ -1,9 +1,11 @@
-# 📊 Market News Data Pipeline
+# Market News Data Pipeline
 
-> Pipeline de données temps réel pour l'analyse de sentiments financiers  
-> **M2 DataScale - Université Paris-Saclay**
+> Pipeline de données temps réel pour l'analyse de sentiment des actualités financières  
+> **M2 DataScale — Université de Versailles Saint-Quentin-en-Yvelines**
 
-## 🏗️ Architecture
+---
+
+## Architecture
 
 ```
 Alpha Vantage API → Kafka → Logstash → Elasticsearch → Kibana
@@ -11,310 +13,183 @@ Alpha Vantage API → Kafka → Logstash → Elasticsearch → Kibana
                                            Spark
 ```
 
-**Technologies** :
-- 📡 **Producer** : Python + Kafka Producer
-- 🚀 **Streaming** : Apache Kafka + Zookeeper
-- 🔄 **Transformation** : Logstash
-- 🔍 **Indexation** : Elasticsearch (8.12.2)
-- 📊 **Visualisation** : Kibana
-- ⚡ **Traitement Distribué** : Apache Spark
+| Composant | Technologie | Rôle |
+|-----------|-------------|------|
+| Collecte | Python + Alpha Vantage API | Récupération des actualités financières avec scores de sentiment |
+| Streaming | Apache Kafka + Zookeeper | Transport fiable et découplé des messages |
+| Transformation | Logstash | Parsing JSON, typage, normalisation des dates |
+| Indexation | Elasticsearch 8.12.2 | Stockage, recherche et agrégations |
+| Visualisation | Kibana | Dashboards et analyses interactives |
+| Traitement distribué | Apache Spark 3.4.2 | Agrégations distribuées sur le corpus indexé |
 
 ---
 
-## 📋 État du Projet
+## Structure du Projet
 
-### ✅ Parties Complètes (Binôme)
-
-- **Partie 1** : Collecte API Alpha Vantage ✅
-- **Partie 2** : Transmission Kafka (producteur/consommateur) ✅
-- **Partie 3** : Transformation Logstash + Indexation Elasticsearch ✅
-
-### 🚧 Parties en Cours
-
-- **Partie 4** : Requêtes Elasticsearch + Visualisations Kibana (voir [kibana/VISUALIZATIONS.md](kibana/VISUALIZATIONS.md))
-- **Partie 5** : Traitement distribué Spark (voir [spark/README.md](spark/README.md))
+```
+market-news-data-pipeline/
+├── docker-compose.yml              # Stack complète (Kafka, ES, Kibana, Logstash, Spark)
+├── README.md
+│
+├── producer/
+│   ├── producer.py                 # Collecte API Alpha Vantage → Kafka
+│   ├── requirements.txt
+│   └── .env                        # Clé API (non versionné)
+│
+├── elastic/
+│   └── index-template.json         # Mapping Elasticsearch avec N-gram analyzer
+│
+├── logstash/
+│   └── pipeline.conf               # Pipeline Kafka → Elasticsearch
+│
+├── spark/
+│   ├── job.py                      # Job d'agrégations distribuées
+│   └── output/                     # Exports CSV des résultats
+│
+├── elasticsearch-queries/
+│   └── QUERIES.md                  # 5 requêtes Elasticsearch documentées
+│
+└── kibana/
+    └── VISUALIZATIONS.md           # Guide des visualisations et du dashboard
+```
 
 ---
 
-## 🚀 Démarrage Rapide
+## Prérequis
 
-### 1️⃣ Prérequis
-
-- Docker Desktop installé et démarré
-- Python 3.11+ avec pip
+- Docker Desktop 24.x
+- Python 3.11+
 - Clé API Alpha Vantage (gratuite : https://www.alphavantage.co/support/#api-key)
 
-### 2️⃣ Configuration
+---
 
-**Créer le fichier `.env` dans `producer/` :**
+## Installation et Lancement
+
+### 1. Configuration
+
+Créer le fichier `.env` dans `producer/` :
 ```env
 ALPHAVANTAGE_API_KEY=VOTRE_CLE_ICI
 ```
 
-**Installer les dépendances Python :**
-```powershell
+Installer les dépendances Python :
+```bash
 cd producer
 python -m venv .venv
-.\.venv\Scripts\Activate.ps1  # PowerShell
+source .venv/bin/activate        # Linux / Git Bash
 # OU
-source .venv/bin/activate      # Git Bash
+.\.venv\Scripts\Activate.ps1     # PowerShell
 
 pip install -r requirements.txt
 ```
 
-### 3️⃣ Lancer la Stack Docker
+### 2. Lancer la stack Docker
 
-```powershell
-# Depuis la racine du projet
+```bash
 docker compose up -d
 ```
 
-**Vérifier que tout tourne :**
-```powershell
+Vérifier que les 6 conteneurs sont actifs :
+```bash
 docker compose ps
 ```
 
-Vous devriez voir 5 conteneurs **Up** :
-- `zookeeper`
-- `kafka`
-- `elasticsearch`
-- `kibana`
-- `logstash`
+Les services suivants doivent être en état **Up** : `zookeeper`, `kafka`, `elasticsearch`, `kibana`, `logstash`, `spark`.
 
-**Attendre 30 secondes** que tous les services démarrent complètement.
+### 3. Lancer le producer
 
-### 4️⃣ Lancer le Producer
-
-```powershell
+```bash
 cd producer
 python producer.py
 ```
 
-**Sortie attendue :**
+Sortie attendue :
 ```
 API returned 50 articles
-published 15 docs to market_news
+published 50 docs to market_news
 ```
 
-Le producer tourne en continu (polling toutes les heures). Laisser tourner **au moins 10 minutes** pour accumuler des données.
+### 4. Exécuter le job Spark
 
----
-
-## 🔍 Vérification des Données
-
-### Vérifier Kafka
-```powershell
-docker compose exec kafka kafka-topics --list --bootstrap-server localhost:9092
+```bash
+docker-compose exec spark /opt/spark/bin/spark-submit \
+  --master local[*] \
+  --jars /tmp/spark-deps/es-spark.jar \
+  /opt/spark-jobs/job.py
 ```
 
-Doit afficher : `market_news`
+### 5. Accéder à Kibana
 
-### Vérifier Elasticsearch
-```powershell
-curl "http://localhost:9201/market-news-*/_count?pretty"
-```
-
-Doit retourner un count > 0.
-
-### Vérifier Kibana
 Ouvrir : http://localhost:5601
 
 ---
 
-## 📊 Partie 4 : Requêtes + Visualisations Kibana
+## Configuration Réseau
 
-**Guide complet** : [kibana/VISUALIZATIONS.md](kibana/VISUALIZATIONS.md)  
-**Requêtes Elasticsearch** : [elasticsearch-queries/QUERIES.md](elasticsearch-queries/QUERIES.md)
+| Service | Port (hôte) | Port (conteneur) | URL d'accès |
+|---------|-------------|------------------|-------------|
+| Kafka | 9092 | 9092 | `localhost:9092` |
+| Zookeeper | 2181 | 2181 | `localhost:2181` |
+| Elasticsearch | 9201 | 9200 | http://localhost:9201 |
+| Kibana | 5601 | 5601 | http://localhost:5601 |
+| Logstash | 9600 | 9600 | `localhost:9600` |
 
-### Requêtes à Réaliser (5 obligatoires)
-
-1. ✅ **Requête textuelle** : Match query sur `title`
-2. ✅ **Agrégation** : Sentiment moyen par source
-3. ✅ **N-gram** : Recherche avec `title.ngram`
-4. ✅ **Fuzzy** : Tolérance aux fautes de frappe
-5. ✅ **Série temporelle** : Évolution du sentiment par jour
-
-### Visualisations à Créer
-
-- Line chart : évolution temporelle
-- Bar chart : sentiment par source
-- Pie chart : distribution Bullish/Bearish/Neutral
-- Métriques : KPIs globaux
-- Data table : derniers articles
-
-**Dashboard final** : combiner toutes les visualisations.
+> **Important** : Elasticsearch est exposé sur le port **9201** depuis l'hôte, mais accessible sur le port **9200** depuis les conteneurs Docker (Logstash, Spark) via `http://elasticsearch:9200`.
 
 ---
 
-## ⚡ Partie 5 : Traitement Spark
+## Résultats
 
-**Guide complet** : [spark/README.md](spark/README.md)
+### Données collectées
+- **50 articles** financiers indexés sur 19 jours (25 janvier — 14 février 2026)
+- **24 sources** médiatiques distinctes
+- Score de sentiment moyen global : **0.151** (légèrement positif)
 
-### Ce que fait le Job Spark
+### Distribution des sentiments
 
-Le script `spark/job.py` effectue **5 analyses distribuées** :
+| Label | Articles | Pourcentage |
+|-------|----------|-------------|
+| Somewhat-Bullish | 21 | 42% |
+| Neutral | 20 | 40% |
+| Bullish | 6 | 12% |
+| Somewhat-Bearish | 3 | 6% |
 
-1. **Statistiques globales** : avg, min, max du sentiment
-2. **Sentiment par source** : agrégation par média
-3. **Distribution des labels** : Bullish vs Bearish vs Neutral
-4. **Analyse par ticker** : AAPL, MSFT, GOOGL
-5. **Top articles** : plus positifs et plus négatifs
-
-### Exécution
-
-```powershell
-cd spark
-python job.py
-```
-
-**Résultats exportés** en CSV + JSON dans `.venv/spark-tp/spark-output/` (à adapter selon ton environnement).
+### Indices Elasticsearch produits par Spark
+- `market-news-stats-daily` : agrégations journalières
+- `market-news-stats-by-source` : agrégations par source médiatique
+- `market-news-stats-by-sentiment` : distribution par catégorie de sentiment
 
 ---
 
-## 📂 Structure du Projet
+## Dépannage
 
-```
-market-news-data-pipeline/
-├── docker-compose.yml              # Stack complète (Kafka, ES, Kibana, Logstash)
-├── README.md                       # Ce fichier
-│
-├── producer/
-│   ├── producer.py                 # Collecte API → Kafka
-│   ├── requirements.txt            # Dépendances Python
-│   └── .env                        # Clé API (non versionné)
-│
-├── elastic/
-│   └── index-template.json         # Mapping ES avec n-gram analyzer
-│
-├── logstash/
-│   └── pipeline.conf               # Kafka → Elasticsearch
-│
-├── spark/
-│   ├── job.py                      # Analyses distribuées
-│   └── README.md                   # Guide d'utilisation Spark
-│
-├── elasticsearch-queries/
-│   └── QUERIES.md                  # 5 requêtes ES obligatoires
-│
-└── kibana/
-    └── VISUALIZATIONS.md           # Guide visualisations + dashboard
-```
+**Erreur `NoBrokersAvailable`**  
+Kafka n'est pas encore prêt. Attendre 30 secondes après `docker compose up -d` et réessayer.
 
----
+**`Connection refused` sur Elasticsearch**  
+Vérifier que le conteneur tourne avec `docker compose ps`. Utiliser le port **9201** depuis l'hôte.
 
-## 🔧 Configuration Système
+**Aucune donnée dans Elasticsearch**  
+Vérifier les logs Logstash : `docker compose logs logstash -f`
 
-### Ports Utilisés
-
-| Service         | Port Host | Port Container | Accès |
-|-----------------|-----------|---|----------|
-| Kafka           | 9092      | 9092 | `localhost:9092` |
-| Zookeeper       | 2181      | 2181 | `localhost:2181` |
-| **Elasticsearch** | **9201** | **9200** | http://localhost:9201 (host) / http://elasticsearch:9200 (Docker) |
-| Kibana          | 5601      | 5601 | http://localhost:5601 |
-| Logstash        | 9600      | 9600 | `localhost:9600` |
-
-### ⚠️ Important : Elasticsearch sur 2 ports
-
-- **Depuis HOST (Windows)** : `http://localhost:9201`
-  - Utilisé par : curl, Kibana, requêtes manuelles
-  - Exemple : `curl http://localhost:9201/market-news-*/_count?pretty`
-
-- **Depuis CONTENEURS (Docker network)** : `http://elasticsearch:9200`
-  - Utilisé par : Logstash, Spark (dans leurs conteneurs)
-  - Exemple dans `job.py` : `ES_HOST = "elasticsearch"`, `ES_PORT = "9200"`
-
-**Résumé** : Si tu utilises Spark / Logstash EN LOCAL (Windows), définis les variables d'environnement :
-```powershell
-$env:ES_HOST = "localhost"
-$env:ES_PORT = "9201"
-```
-
----
-
-## 🐛 Dépannage
-
-### ❌ Erreur "NoBrokersAvailable"
-→ Kafka n'est pas démarré. Lancer `docker compose up -d` et attendre 30s.
-
-### ❌ "Connection refused" Elasticsearch
-→ Vérifier que le conteneur tourne : `docker compose ps`  
-→ Utiliser le bon port : **9201**
-
-### ❌ Pas de données dans Elasticsearch
-→ Laisser tourner le producer au moins 10 minutes  
-→ Vérifier les logs Logstash : `docker compose logs logstash -f`
-
-### ❌ Conteneur Kafka crash au démarrage
-→ Nettoyer et redémarrer :
-```powershell
+**Conteneur Kafka crash au démarrage**  
+```bash
 docker compose down -v
 docker compose up -d
 ```
 
 ---
 
-## 📸 Livrables pour le Rapport
+## Références
 
-### Partie 1-3 (Déjà fait par ta binôme)
-- Captures des topics Kafka
-- Logs du producer
-- Mapping Elasticsearch
-- Données indexées
-
-### Partie 4 (À faire)
-- [ ] 5 requêtes Elasticsearch exécutées + résultats JSON
-- [ ] Captures des visualisations Kibana
-- [ ] Dashboard complet
-
-### Partie 5 (À faire)
-- [ ] Logs d'exécution du job Spark
-- [ ] Fichiers CSV/JSON exportés
-- [ ] Justification technique (pourquoi Spark ?)
-
-### Documentation
-- [ ] README complet (ce fichier)
-- [ ] Commentaires dans le code
-- [ ] Explications des choix techniques
+- [Alpha Vantage API Documentation](https://www.alphavantage.co/documentation/)
+- [Apache Kafka Documentation](https://kafka.apache.org/documentation/)
+- [Elasticsearch Reference Guide](https://www.elastic.co/guide/en/elasticsearch/reference/)
+- [Kibana User Guide](https://www.elastic.co/guide/en/kibana/current/)
+- [PySpark SQL API](https://spark.apache.org/docs/latest/api/python/reference/pyspark.sql.html)
 
 ---
 
-## 📚 Ressources
-
-- [Alpha Vantage API Docs](https://www.alphavantage.co/documentation/)
-- [Kafka Python Client](https://kafka-python.readthedocs.io/)
-- [Elasticsearch Python Client](https://elasticsearch-py.readthedocs.io/)
-- [Kibana Lens](https://www.elastic.co/guide/en/kibana/current/lens.html)
-- [PySpark SQL](https://spark.apache.org/docs/latest/api/python/reference/pyspark.sql.html)
-
----
-
-## 👥 Contributeurs
-
-- **Binôme** : Parties 1, 2, 3 (Collecte, Kafka, Logstash, Elasticsearch)
-- **Toi** : Parties 4, 5 (Requêtes, Kibana, Spark)
-
-**Projet** : M2 DataScale - Université Paris-Saclay  
-**Date limite** : 27 février 2026
-
----
-
-## ✅ Checklist Finale
-
-- [x] Partie 1 : API + Producer Kafka
-- [x] Partie 2 : Topics Kafka + Consommation
-- [x] Partie 3 : Logstash + Mapping ES
-- [ ] Partie 4 : 5 requêtes ES + Visualisations Kibana
-- [ ] Partie 5 : Job Spark + Export résultats
-- [ ] Documentation complète + Captures
-
----
-
-## 🎯 Prochaines Étapes IMMÉDIATES
-
-1. **Laisser tourner le producer** 10-15 minutes pour collecter des données
-2. **Vérifier l'indexation** : `curl "http://localhost:9201/market-news-*/_count?pretty"`
-3. **Tester les 5 requêtes ES** : voir [elasticsearch-queries/QUERIES.md](elasticsearch-queries/QUERIES.md)
-4. **Créer les visualisations Kibana** : voir [kibana/VISUALIZATIONS.md](kibana/VISUALIZATIONS.md)
-5. **Exécuter le job Spark** : voir [spark/README.md](spark/README.md)
-6. **Capturer les résultats** pour le rapport final
+**Projet** : M2 DataScale — UE Indexation et Visualisation de Données Massives  
+**Université** : Université de Versailles Saint-Quentin-en-Yvelines  
+**Année universitaire** : 2025–2026
