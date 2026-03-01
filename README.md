@@ -1,6 +1,7 @@
 # Market News Data Pipeline
 
-> Pipeline de données temps réel pour l'analyse de sentiment des actualités financières  
+> Pipeline de données temps réel pour l'analyse de sentiment des actualités financières
+> Réalisé par FELLATI Zineb et BENALI Mohamed Amine.  
 > **M2 DataScale — Université de Versailles Saint-Quentin-en-Yvelines**
 
 ---
