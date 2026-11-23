@@ -262,7 +262,7 @@ Results documented from one execution of the project:
 
 **Zineb Fellati** and **Mohamed Amine Benali**
 
-M2 DataScale — Université de Versailles Saint-Quentin-en-Yvelines.
+M2 DataScale Université de Versailles Saint-Quentin-en-Yvelines.
 
 Academic project, 2025–2026.
 
