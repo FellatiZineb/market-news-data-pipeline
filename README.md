@@ -1,4 +1,4 @@
-# 📈 Market News Data Pipeline
+# Market News Data Pipeline
 
 An end-to-end financial news data pipeline designed to collect, process, index and analyze financial news and sentiment data using a distributed data engineering architecture.
 
