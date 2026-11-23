@@ -1,196 +1,270 @@
-# Market News Data Pipeline
+# 📈 Market News Data Pipeline
 
-> Pipeline de données temps réel pour l'analyse de sentiment des actualités financières
-> Réalisé par FELLATI Zineb et BENALI Mohamed Amine.  
-> **M2 DataScale — Université de Versailles Saint-Quentin-en-Yvelines**
+An end-to-end financial news data pipeline designed to collect, process, index and analyze financial news and sentiment data using a distributed data engineering architecture.
 
----
+Built with Python, Apache Kafka, Logstash, Elasticsearch, Kibana and Apache Spark, orchestrated using Docker Compose.
 
-## Architecture
+##  Architecture
 
+```mermaid
+flowchart TD
+    A["Alpha Vantage News Sentiment API"]
+    B["Python Producer"]
+    C["Apache Kafka<br/>market_news topic"]
+    D["Logstash<br/>Parsing & Normalization"]
+    E[("Elasticsearch<br/>Financial News Index")]
+    F["Kibana<br/>Dashboards & Exploration"]
+    G["Apache Spark<br/>Distributed Aggregations"]
+    H[("Aggregated Elasticsearch Indices")]
+    I["CSV / JSON Exports"]
+
+    A --> B
+    B --> C
+    C --> D
+    D --> E
+    E --> F
+    E --> G
+    G --> H
+    G --> I
+    H --> F
 ```
-Alpha Vantage API → Kafka → Logstash → Elasticsearch → Kibana
-                                              ↓
-                                           Spark
-```
 
-| Composant | Technologie | Rôle |
-|-----------|-------------|------|
-| Collecte | Python + Alpha Vantage API | Récupération des actualités financières avec scores de sentiment |
-| Streaming | Apache Kafka + Zookeeper | Transport fiable et découplé des messages |
-| Transformation | Logstash | Parsing JSON, typage, normalisation des dates |
-| Indexation | Elasticsearch 8.12.2 | Stockage, recherche et agrégations |
-| Visualisation | Kibana | Dashboards et analyses interactives |
-| Traitement distribué | Apache Spark 3.4.2 | Agrégations distribuées sur le corpus indexé |
+##  Data Pipeline
 
----
+### 1. Data Ingestion
 
-## Structure du Projet
+**Python · Alpha Vantage API**
 
-```
+- Retrieve financial news and sentiment information using the Alpha Vantage News Sentiment API.
+- Monitor selected financial tickers: AAPL, MSFT and GOOGL.
+- Extract article metadata, publication dates and sentiment scores.
+- Normalize JSON responses into structured documents.
+- Avoid duplicate publications using article URLs as identifiers.
+- Publish messages to the Kafka topic `market_news`.
+
+The producer polls the API every hour.
+
+### 2. Message Streaming
+
+**Apache Kafka · Zookeeper**
+
+Kafka acts as the message broker between data ingestion and downstream processing.
+
+- Publish financial news events to the `market_news` topic.
+- Decouple the producer from the processing layer.
+- Allow Logstash to consume incoming messages independently.
+
+### 3. Data Transformation
+
+**Logstash**
+
+Logstash consumes messages from Kafka and prepares them for indexing.
+
+- Parse incoming JSON events.
+- Normalize publication timestamps.
+- Standardize sentiment field names.
+- Forward structured documents to Elasticsearch.
+
+### 4. Data Indexing
+
+**Elasticsearch 8.12.2**
+
+Financial news articles are stored in Elasticsearch using date-based indices.
+
+- Index structured financial news documents.
+- Support full-text search and filtering.
+- Enable sentiment-based aggregations and analysis.
+
+### 5. Distributed Processing
+
+**Apache Spark 3.4.2 · PySpark**
+
+Spark reads indexed articles from Elasticsearch and performs distributed aggregations.
+
+Three analytical dimensions are calculated:
+
+| Aggregation | Metrics |
+|---|---|
+| Daily statistics | Article count and average sentiment score |
+| Media sources | Article count and average sentiment by source |
+| Sentiment distribution | Article count and average score by sentiment category |
+
+Results are written back to dedicated Elasticsearch indices and exported in CSV and JSON formats.
+
+### 6. Data Visualization
+
+**Kibana**
+
+Explore indexed financial news and analytical results through interactive dashboards and visualizations.
+
+## 🛠️ Technology Stack
+
+| Component | Technology |
+|---|---|
+| Data Source | Alpha Vantage API |
+| Programming | Python 3.11+ |
+| Streaming | Apache Kafka |
+| Coordination | Apache Zookeeper |
+| Transformation | Logstash |
+| Search & Indexing | Elasticsearch 8.12.2 |
+| Distributed Processing | Apache Spark 3.4.2 |
+| Visualization | Kibana |
+| Containerization | Docker Compose |
+
+## Project Structure
+
+```text
 market-news-data-pipeline/
-├── docker-compose.yml              # Stack complète (Kafka, ES, Kibana, Logstash, Spark)
-├── README.md
 │
 ├── producer/
-│   ├── producer.py                 # Collecte API Alpha Vantage → Kafka
-│   ├── requirements.txt
-│   └── .env                        # Clé API (non versionné)
+│   ├── producer.py
+│   └── requirements.txt
 │
 ├── elastic/
-│   └── index-template.json         # Mapping Elasticsearch avec N-gram analyzer
+│   └── index-template.json
 │
 ├── logstash/
-│   └── pipeline.conf               # Pipeline Kafka → Elasticsearch
+│   └── pipeline.conf
 │
 ├── spark/
-│   ├── job.py                      # Job d'agrégations distribuées
-│   └── output/                     # Exports CSV des résultats
+│   ├── job.py
+│   └── output/
 │
 ├── elasticsearch-queries/
-│   └── QUERIES.md                  # 5 requêtes Elasticsearch documentées
+│   └── QUERIES.md
 │
-└── kibana/
-    └── VISUALIZATIONS.md           # Guide des visualisations et du dashboard
+├── kibana/
+│   └── VISUALIZATIONS.md
+│
+├── images/
+│
+├── docker-compose.yml
+└── README.md
 ```
 
----
+##  Getting Started
 
-## Prérequis
+### Prerequisites
 
 - Docker Desktop 24.x
 - Python 3.11+
-- Clé API Alpha Vantage (gratuite : https://www.alphavantage.co/support/#api-key)
+- Alpha Vantage API key
 
----
+### 1. Clone the repository
 
-## Installation et Lancement
+```bash
+git clone https://github.com/FellatiZineb/market-news-data-pipeline.git
 
-### 1. Configuration
-
-Créer le fichier `.env` dans `producer/` :
-```env
-ALPHAVANTAGE_API_KEY=VOTRE_CLE_ICI
+cd market-news-data-pipeline
 ```
 
-Installer les dépendances Python :
+### 2. Configure API credentials
+
+Create a `.env` file inside the `producer/` directory:
+
+```env
+ALPHAVANTAGE_API_KEY=your_api_key
+```
+
+Install Python dependencies:
+
 ```bash
 cd producer
+
 python -m venv .venv
-source .venv/bin/activate        # Linux / Git Bash
-# OU
-.\.venv\Scripts\Activate.ps1     # PowerShell
+
+# Windows
+.venv\Scripts\activate
+
+# Linux / macOS
+source .venv/bin/activate
 
 pip install -r requirements.txt
 ```
 
-### 2. Lancer la stack Docker
+### 3. Start the infrastructure
+
+From the project root:
 
 ```bash
 docker compose up -d
 ```
 
-Vérifier que les 6 conteneurs sont actifs :
+Check running containers:
+
 ```bash
 docker compose ps
 ```
 
-Les services suivants doivent être en état **Up** : `zookeeper`, `kafka`, `elasticsearch`, `kibana`, `logstash`, `spark`.
-
-### 3. Lancer le producer
+### 4. Run the producer
 
 ```bash
 cd producer
 python producer.py
 ```
 
-Sortie attendue :
-```
-API returned 50 articles
-published 50 docs to market_news
-```
-
-### 4. Exécuter le job Spark
+### 5. Execute Spark aggregations
 
 ```bash
-docker-compose exec spark /opt/spark/bin/spark-submit \
+docker compose exec spark /opt/spark/bin/spark-submit \
   --master local[*] \
   --jars /tmp/spark-deps/es-spark.jar \
   /opt/spark-jobs/job.py
 ```
 
-### 5. Accéder à Kibana
+### 6. Explore Kibana
 
-Ouvrir : http://localhost:5601
+Open:
 
----
+http://localhost:5601
 
-## Configuration Réseau
+Elasticsearch is accessible from your host at:
 
-| Service | Port (hôte) | Port (conteneur) | URL d'accès |
-|---------|-------------|------------------|-------------|
-| Kafka | 9092 | 9092 | `localhost:9092` |
-| Zookeeper | 2181 | 2181 | `localhost:2181` |
-| Elasticsearch | 9201 | 9200 | http://localhost:9201 |
-| Kibana | 5601 | 5601 | http://localhost:5601 |
-| Logstash | 9600 | 9600 | `localhost:9600` |
+http://localhost:9201
 
-> **Important** : Elasticsearch est exposé sur le port **9201** depuis l'hôte, mais accessible sur le port **9200** depuis les conteneurs Docker (Logstash, Spark) via `http://elasticsearch:9200`.
+##  Sample Results
 
----
+Results documented from one execution of the project:
 
-## Résultats
+| Metric | Result |
+|---|---:|
+| Financial news articles | 50 |
+| Distinct media sources | 24 |
+| Average sentiment score | 0.151 |
+| Observation period | 19 days |
 
-### Données collectées
-- **50 articles** financiers indexés sur 19 jours (25 janvier — 14 février 2026)
-- **24 sources** médiatiques distinctes
-- Score de sentiment moyen global : **0.151** (légèrement positif)
+### Sentiment Distribution
 
-### Distribution des sentiments
-
-| Label | Articles | Pourcentage |
-|-------|----------|-------------|
-| Somewhat-Bullish | 21 | 42% |
+| Sentiment | Articles | Distribution |
+|---|---:|---:|
+| Somewhat Bullish | 21 | 42% |
 | Neutral | 20 | 40% |
 | Bullish | 6 | 12% |
-| Somewhat-Bearish | 3 | 6% |
+| Somewhat Bearish | 3 | 6% |
 
-### Indices Elasticsearch produits par Spark
-- `market-news-stats-daily` : agrégations journalières
-- `market-news-stats-by-source` : agrégations par source médiatique
-- `market-news-stats-by-sentiment` : distribution par catégorie de sentiment
+### Spark Output Indices
 
----
+- `market-news-stats-daily`
+- `market-news-stats-by-source`
+- `market-news-stats-by-sentiment`
 
-## Dépannage
+##  Key Engineering Concepts
 
-**Erreur `NoBrokersAvailable`**  
-Kafka n'est pas encore prêt. Attendre 30 secondes après `docker compose up -d` et réessayer.
+- Event-driven data ingestion with Apache Kafka.
+- Decoupled data processing architecture.
+- JSON parsing and data normalization.
+- Distributed data processing with Apache Spark.
+- Search and indexing with Elasticsearch.
+- Analytical aggregations and data visualization.
+- Containerized infrastructure using Docker Compose.
 
-**`Connection refused` sur Elasticsearch**  
-Vérifier que le conteneur tourne avec `docker compose ps`. Utiliser le port **9201** depuis l'hôte.
+##  Authors
 
-**Aucune donnée dans Elasticsearch**  
-Vérifier les logs Logstash : `docker compose logs logstash -f`
+**Zineb Fellati** and **Mohamed Amine Benali**
 
-**Conteneur Kafka crash au démarrage**  
-```bash
-docker compose down -v
-docker compose up -d
-```
+M2 DataScale — Université de Versailles Saint-Quentin-en-Yvelines.
 
----
-
-## Références
-
-- [Alpha Vantage API Documentation](https://www.alphavantage.co/documentation/)
-- [Apache Kafka Documentation](https://kafka.apache.org/documentation/)
-- [Elasticsearch Reference Guide](https://www.elastic.co/guide/en/elasticsearch/reference/)
-- [Kibana User Guide](https://www.elastic.co/guide/en/kibana/current/)
-- [PySpark SQL API](https://spark.apache.org/docs/latest/api/python/reference/pyspark.sql.html)
+Academic project, 2025–2026.
 
 ---
-
-**Projet** : M2 DataScale — UE Indexation et Visualisation de Données Massives  
-**Université** : Université de Versailles Saint-Quentin-en-Yvelines  
-**Année universitaire** : 2025–2026
+ If you find this project interesting, feel free to explore the repository!
